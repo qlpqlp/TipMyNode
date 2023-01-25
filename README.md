@@ -13,6 +13,8 @@ Tip My Node
 
 3- Now edit the file ```inc/config.php``` and add your Dogecoin Core Node and Database Credentials
 
+4- Setup a CRON task and point to the file ```inc/cron.php``` running each minute.
+
 ## How to Update 💻
 
 1- Backup all files from your TipMyNode and also make an backup of the MySql/MariaDB database ```(Always Backup its most crucial step of all)```
