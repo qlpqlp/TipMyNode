@@ -19,7 +19,7 @@ Tip My Node
 
 2- Download and extract the files from GitHub.
 
-3- Upload/replace all files on your server EXEPT ```inc/config.php``` and tipmynode.sql``` file
+3- Upload/replace all files on your server EXEPT ```inc/config.php``` and ```tipmynode.sql``` file
 
 ###Notes:
 - This is a Beta Version so is best for now only use on DogeCoin Core Wallet on TestNet untill more people test it and see if everything is ok :)
