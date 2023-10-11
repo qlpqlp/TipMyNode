@@ -39,90 +39,86 @@ class DogeBridge {
         $this->config = $config;
     }
 
-  // update an existent peer
-  public function UpdateNode($ip,$version,$subver)
-    {
-      $ip_hash = hash('sha256', $ip.$this->$config["dbsalt"]); // we do not store the IP, insted we create a checksum of the IP for privacy protection
-      $db = $this->pdo->query("UPDATE nodes SET
-      version = '".$version."',
-      subver = '".$subver."',
-      date = '".date('Y-m-d H:i:s')."'
-      WHERE ip = '".$ip_hash."' limit 1");
-
-      return null;
+    // update an existent peer
+    public function UpdateNode($ip, $version, $subver) {
+        $ip_hash = hash('sha256', $ip . $this->config["dbsalt"]);
+        $sql = "UPDATE nodes SET version = :version, subver = :subver, date = :date WHERE ip = :ip_hash LIMIT 1";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindParam(":version", $version, PDO::PARAM_STR);
+        $stmt->bindParam(":subver", $subver, PDO::PARAM_STR);
+        $stmt->bindParam(":date", date('Y-m-d H:i:s'), PDO::PARAM_STR);
+        $stmt->bindParam(":ip_hash", $ip_hash, PDO::PARAM_STR);
+        $stmt->execute();
+        return null;
     }
 
   // add a new peer
-  public function AddNode($ip,$version,$subver)
-    {
-      $ip_hash = hash('sha256', $ip.$this->$config["dbsalt"]); // we do not store the IP, insted we create a checksum of the IP for privacy protection
-      $db = $this->pdo->query("INSERT INTO `nodes` (
-      `ip`,
-      `version`,
-      `subver`,
-      `date`
-      ) VALUES (
-      '$ip_hash',
-      '$version',
-      '$subver',
-      '".date('Y-m-d H:i:s')."'
-      );");
+    // add a new peer
+    public function AddNode($ip, $version, $subver) {
+        $ip_hash = hash('sha256', $ip . $this->config["dbsalt"]);
+        $sql = "INSERT INTO `nodes` (ip, version, subver, date) VALUES (:ip_hash, :version, :subver, :date)";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindParam(":ip_hash", $ip_hash, PDO::PARAM_STR);
+        $stmt->bindParam(":version", $version, PDO::PARAM_STR);
+        $stmt->bindParam(":subver", $subver, PDO::PARAM_STR);
+        $stmt->bindParam(":date", date('Y-m-d H:i:s'), PDO::PARAM_STR);
+        $stmt->execute();
 
-      // update the GEO corrdinates on the peer added
-      $this->GeoNode($ip);
+        // update the GEO coordinates on the peer added
+        $this->GeoNode($ip);
 
         return null;
     }
 
-   //find a peer
-  public function FindNode($ip)
-    {
-      $ip_hash = hash('sha256', $ip.$this->$config["dbsalt"]); // we do not store the IP, insted we create a checksum of the IP for privacy protection
-      $db = $this->pdo->query("SELECT * FROM nodes where ip='".$ip_hash."' limit 1");
-      if ($db->fetch()){
-              return 1;
-      };
-      return false;
+    // find a peer
+    public function FindNode($ip) {
+        $ip_hash = hash('sha256', $ip . $this->config["dbsalt"]);
+        $sql = "SELECT * FROM nodes WHERE ip = :ip_hash LIMIT 1";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindParam(":ip_hash", $ip_hash, PDO::PARAM_STR);
+        $stmt->execute();
+        if ($stmt->fetch()) {
+            return 1;
+        }
+        return false;
     }
 
-  //add/update GEO location
-  public function GeoNode($ip)
-    {
+    // add/update GEO location
+    public function GeoNode($ip) {
+        $pos = strpos($ip, ']:');
+        if ($pos !== false) {
+            $ippre = explode("]:", $ip);
+            $ippre[0] = str_replace("[", "", $ippre[0]);
+        } else {
+            $ippre = explode(":", $ip);
+        }
 
-      $pos = strpos($ip, ']:');
-      if ($pos !== false) {
-        $ippre = explode("]:",$ip);
-        $ippre[0] = str_replace("[", "", $ippre[0]);
-      }else{
-          $ippre = explode(":",$ip);
-      };
-      $details = str_replace("'", "", file_get_contents("http://ipinfo.io/".$ippre[0]."?token=".$this->$config["ipinfoToken"]));
-      $details = json_decode($details);
-      $geo = explode(",",$details->loc);
-      if (isset($details->country)){ // make sure ipinfo.io is working
-        $ip_hash = hash('sha256', $ip.$this->$config["dbsalt"]); // we do not store the IP, insted we create a checksum of the IP for privacy protection
-        $db = $this->pdo->query("UPDATE nodes SET
-        lat = '".$geo[0]."',
-        lon = '".$geo[1]."',
-        country = '".filter_var($details->country, FILTER_SANITIZE_STRING)."',
-        city = '".filter_var($details->city, FILTER_SANITIZE_STRING)."',
-        ipinfo = '".filter_var($details->org, FILTER_SANITIZE_STRING)."'
-        WHERE ip = '".$ip_hash."' and lat = '' and lon = '' limit 1");
-      };
-      return null;
-  }
+        $details = str_replace("'", "", file_get_contents("http://ipinfo.io/" . $ippre[0] . "?token=" . $this->config["ipinfoToken"]));
+        $details = json_decode($details);
 
-  // add TipMyNode
-  public function AddTipMyNode($dogeaddress,$node_hash)
-    {
-      $db = $this->pdo->query("INSERT INTO `tipmynode` (
-      `dogeaddress`,
-      `node_hash`
-      ) VALUES (
-      '$dogeaddress',
-      '$node_hash'
-      );");
+        if (isset($details->country)) {
+            $ip_hash = hash('sha256', $ip . $this->config["dbsalt"]);
+            $sql = "UPDATE nodes SET lat = :lat, lon = :lon, country = :country, city = :city, ipinfo = :ipinfo WHERE ip = :ip_hash AND lat = '' AND lon = '' LIMIT 1";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindParam(":lat", $geo[0], PDO::PARAM_STR);
+            $stmt->bindParam(":lon", $geo[1], PDO::PARAM_STR);
+            $stmt->bindParam(":country", filter_var($details->country, FILTER_SANITIZE_STRING), PDO::PARAM_STR);
+            $stmt->bindParam(":city", filter_var($details->city, FILTER_SANITIZE_STRING), PDO::PARAM_STR);
+            $stmt->bindParam(":ipinfo", filter_var($details->org, FILTER_SANITIZE_STRING), PDO::PARAM_STR);
+            $stmt->bindParam(":ip_hash", $ip_hash, PDO::PARAM_STR);
+            $stmt->execute();
+        }
 
+        return null;
+    }
+
+    // add TipMyNode
+    public function AddTipMyNode($dogeaddress, $node_hash) {
+        $sql = "INSERT INTO `tipmynode` (dogeaddress, node_hash) VALUES (:dogeaddress, :node_hash)";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindParam(":dogeaddress", $dogeaddress, PDO::PARAM_STR);
+        $stmt->bindParam(":node_hash", $node_hash, PDO::PARAM_STR);
+        $stmt->execute();
         return null;
     }
 
@@ -147,7 +143,6 @@ class DogeBridge {
 
         $loop = 10;
         for ($xi = 0; $xi <= $loop; $xi++) {
-
 
                 // We get all peers/nodes from the Dogecoin Blochain
                 $result = $DogePHPbridgeCommand->getpeerinfo();
