@@ -64,7 +64,7 @@ THE SOFTWARE.
     // we get the Shibe Doge Address and added to the DataBase
     if (isset($_POST["dogeaddress"])){
       $dogeaddress = filter_var($_POST["dogeaddress"], FILTER_SANITIZE_STRING);
-      $node_hash = hash('sha256', $dogeaddress.$dbsalt); // we create an unique Hash to somehow minimise de-anonymise of the node for privacy protection
+      $node_hash = hash('sha256', $dogeaddress.$config["dbsalt"]); // we create an unique Hash to somehow minimise de-anonymise of the node for privacy protection
       $d->AddTipMyNode($dogeaddress,$node_hash);
 ?>
         <div class="alert alert-success" role="alert"><i class="fa-solid fa-paw"></i> Much thanks! Now do the following below</div>
